@@ -389,8 +389,9 @@
           redirectUri
         )}&provider=${encodeURIComponent(provider)}`;
 
+        // Google is picky about the continue target; use the double-continue pattern via appengine logout.
         const googleLogoutUrl = `https://accounts.google.com/Logout?continue=${encodeURIComponent(
-          returnTo
+          `https://appengine.google.com/_ah/logout?continue=${encodeURIComponent(returnTo)}`
         )}`;
 
         updateStatus("Signing out from Google…");
