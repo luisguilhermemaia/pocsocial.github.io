@@ -21,12 +21,14 @@
         --lx-primary-dark: #004059;
         --lx-accent: #ff4f6d;
         --lx-light: #f5fbff;
+        --lx-hero-bg: #e5f3f9;
         --card-bg: #ffffff;
         --border: #d1d5db;
-        --text-main: #111827;
+        --text-main: #123047;
         --text-muted: #6b7280;
-        --radius-lg: 24px;
-        --shadow-md: 0 12px 32px rgba(15, 23, 42, 0.18);
+        --radius-lg: 20px;
+        --radius-xl: 24px;
+        --shadow-md: 0 14px 40px rgba(15, 23, 42, 0.22);
       }
 
       * {
@@ -47,81 +49,104 @@
 
       .page {
         width: 100%;
-        max-width: 480px;
+        max-width: 540px;
         margin: 0 auto;
         display: flex;
         flex-direction: column;
         min-height: 100vh;
-        background: transparent;
+        background: #ffffff;
       }
 
-      /* MAIN / CARD ONLY */
+      /* MAIN / HERO */
 
       .lx-main {
         flex: 1;
+        background: var(--lx-hero-bg);
         display: flex;
-        justify-content: center;
+        flex-direction: column;
+        padding-bottom: 20px;
+      }
+
+      .lx-hero {
+        position: relative;
+        padding: 24px 16px 120px;
+        overflow: hidden;
+      }
+
+      .lx-hero-inner {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
         align-items: center;
-        padding: 24px 16px;
-        background: linear-gradient(to bottom, #e6f2f8, #ffffff);
+        gap: 16px;
+      }
+
+      .lx-hero-title {
+        font-size: 28px;
+        letter-spacing: 0.04em;
+        color: var(--lx-primary-dark);
+      }
+
+      /* MyLuxair toggle bar */
+
+      .lx-auth-toggle {
+        display: inline-grid;
+        grid-template-columns: 1fr 1fr;
+        border-radius: 999px;
+        border: 1px solid #d0e3ee;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+      }
+
+      .lx-auth-toggle button {
+        border: none;
+        background: rgba(255, 255, 255, 0.9);
+        padding: 8px 0;
+        font-size: 14px;
+        min-width: 120px;
+        font-weight: 500;
+        cursor: pointer;
+        color: var(--lx-primary-dark);
+      }
+
+      .lx-auth-toggle button:first-child {
+        border-right: 1px solid #d0e3ee;
+      }
+
+      .lx-auth-toggle button.active {
+        background: #005c7a;
+        color: #ffffff;
+      }
+
+      /* AUTH PANEL */
+
+      .lx-auth-panel {
+        position: relative;
+        margin: -70px 16px 0;
+        padding-bottom: 16px;
       }
 
       .lx-auth-card {
         width: 100%;
-        max-width: 420px;
         background: var(--card-bg);
-        border-radius: var(--radius-lg);
+        border-radius: var(--radius-xl);
         box-shadow: var(--shadow-md);
-        padding: 16px 14px 16px;
+        padding: 16px 14px 18px;
         display: flex;
         flex-direction: column;
         gap: 12px;
       }
 
-      .lx-auth-title {
-        text-align: center;
-      }
-
-      .lx-auth-title h2 {
-        margin: 0;
-        font-size: 20px;
-        font-weight: 600;
-        color: var(--lx-primary-dark);
-      }
-
-      .lx-auth-toggle {
-        margin-top: 12px;
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        border-radius: 999px;
-        border: 1px solid var(--border);
-        overflow: hidden;
-      }
-
-      .lx-auth-toggle button {
-        border: none;
-        background: transparent;
-        padding: 8px 0;
-        font-size: 13px;
-        font-weight: 500;
-        cursor: pointer;
-        color: var(--text-muted);
-      }
-
-      .lx-auth-toggle button.active {
-        background: var(--lx-primary);
-        color: #ffffff;
-      }
-
       .lx-auth-subtitle {
-        margin: 4px 0 0;
+        margin: 2px 0 0;
         text-align: center;
         font-size: 12px;
         color: var(--text-muted);
       }
 
       .google-area {
-        margin-top: 12px;
+        margin-top: 8px;
         display: flex;
         flex-direction: column;
         gap: 8px;
@@ -136,6 +161,17 @@
         font-size: 11px;
         color: var(--text-muted);
         text-align: center;
+      }
+
+      .signed-in-info {
+        margin-top: 4px;
+        font-size: 12px;
+        color: var(--lx-primary-dark);
+        text-align: center;
+      }
+
+      .signed-in-info strong {
+        font-weight: 600;
       }
 
       .divider {
@@ -273,9 +309,22 @@
       .footer-note strong {
         font-weight: 600;
       }
+
+      @media (max-width: 420px) {
+        .lx-hero {
+          padding: 20px 12px 110px;
+        }
+
+        .lx-auth-card {
+          border-radius: 18px;
+        }
+      }
     </style>
 
     <script>
+      let currentMode = "login";
+      let currentGoogleUser = null;
+
       function postToReactNative(payload) {
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify(payload));
@@ -291,21 +340,71 @@
         }
       }
 
+      function updateSignedInInfo(user) {
+        const infoEl = document.getElementById("signedInInfo");
+        if (!infoEl) return;
+
+        if (!user) {
+          infoEl.style.display = "none";
+          infoEl.textContent = "";
+          return;
+        }
+
+        const label = user.name || user.email || "Google user";
+        infoEl.style.display = "block";
+        infoEl.innerHTML = `Signed in as <strong>${label}</strong>`;
+      }
+
+      // Basic JWT decode for ID token (front-end only, for display)
+      function decodeJwt(token) {
+        try {
+          const base64Url = token.split(".")[1];
+          const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+          const jsonPayload = decodeURIComponent(
+            atob(base64)
+              .split("")
+              .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+              .join("")
+          );
+          return JSON.parse(jsonPayload);
+        } catch (error) {
+          console.warn("[PoC] Failed to decode JWT:", error);
+          return null;
+        }
+      }
+
       // GOOGLE (real, using Google Identity Services)
       function handleCredentialResponse(response) {
         try {
+          const decoded = decodeJwt(response.credential);
+
+          currentGoogleUser = decoded
+            ? {
+                email: decoded.email,
+                name: decoded.name || decoded.given_name,
+                sub: decoded.sub,
+              }
+            : null;
+
           const payload = {
             type: "LOGIN_SUCCESS",
             provider: "google",
             token: response.credential,
+            mode: currentMode, // "login" or "signup"
             mock: false,
+            profile: currentGoogleUser,
           };
 
           postToReactNative(payload);
-          updateStatus("Google login successful. Token sent to the app.");
+          updateStatus(
+            `Google ${currentMode} successful. Token sent to the app.`
+          );
+          updateSignedInInfo(currentGoogleUser);
 
           console.log("[PoC] Google login success:", {
             provider: payload.provider,
+            mode: payload.mode,
+            profile: payload.profile,
             tokenPreview: payload.token?.slice(0, 16) + "...",
           });
         } catch (error) {
@@ -320,22 +419,25 @@
           const payload = {
             type: "LOGIN_SUCCESS",
             provider,
+            mode: currentMode,
             token: null,
             mock: true,
           };
 
           postToReactNative(payload);
           updateStatus(
-            provider.charAt(0).toUpperCase() +
-              provider.slice(1) +
-              " (mock) login triggered and sent to the app."
+            `${capitalize(provider)} (mock, ${currentMode}) login triggered and sent to the app.`
           );
 
-          console.log("[PoC] Mock login for provider:", provider);
+          console.log("[PoC] Mock login for provider:", payload);
         } catch (error) {
           console.error("[PoC] Error handling provider click:", error);
           updateStatus("An error occurred while triggering the login.");
         }
+      }
+
+      function capitalize(str) {
+        return str.charAt(0).toUpperCase() + str.slice(1);
       }
 
       function initGoogleButton() {
@@ -375,13 +477,15 @@
         if (!signupBtn || !loginBtn || !subtitle) return;
 
         signupBtn.addEventListener("click", () => {
+          currentMode = "signup";
           signupBtn.classList.add("active");
           loginBtn.classList.remove("active");
           subtitle.textContent =
-            "For this PoC we focus on the login experience. Sign-up is not implemented.";
+            "For this PoC we focus on the login experience, but you can test social sign-up here as well.";
         });
 
         loginBtn.addEventListener("click", () => {
+          currentMode = "login";
           loginBtn.classList.add("active");
           signupBtn.classList.remove("active");
           subtitle.textContent =
@@ -420,74 +524,86 @@
   <body>
     <div class="page">
       <main class="lx-main">
-        <section class="lx-auth-card" aria-label="MyLuxair login PoC">
-          <div class="lx-auth-title">
-            <h2>MyLuxair</h2>
+        <section class="lx-hero" aria-label="MyLuxair hero">
+          <div class="lx-hero-inner">
+            <h1 class="lx-hero-title">MyLuxair</h1>
+
             <div class="lx-auth-toggle">
               <button id="toggle-signup" type="button">Sign-up</button>
               <button id="toggle-login" type="button" class="active">
                 Login
               </button>
             </div>
+          </div>
+        </section>
+
+        <section class="lx-auth-panel">
+          <div class="lx-auth-card" aria-label="MyLuxair login PoC">
             <p id="auth-subtitle" class="lx-auth-subtitle">
               Choose one of the options below to access your MyLuxair account
               (PoC).
             </p>
-          </div>
 
-          <section class="google-area">
-            <div id="googleButton"></div>
-            <p class="hint">
-              Recommended for this PoC: Google Sign-In (real Google Identity
-              Services flow).
+            <section class="google-area">
+              <div id="googleButton"></div>
+              <p class="hint">
+                Recommended for this PoC: Google Sign-In (real Google Identity
+                Services flow).
+              </p>
+              <p
+                id="signedInInfo"
+                class="signed-in-info"
+                style="display: none;"
+              ></p>
+            </section>
+
+            <div class="divider">
+              <div class="divider-line"></div>
+              <span class="divider-text">Or continue with</span>
+              <div class="divider-line"></div>
+            </div>
+
+            <section class="providers-row">
+              <button
+                class="provider-btn apple"
+                type="button"
+                onclick="handleProviderClick('apple')"
+              >
+                <span class="icon"></span>
+                <span>Continue with Apple (mock)</span>
+              </button>
+
+              <button
+                class="provider-btn facebook"
+                type="button"
+                onclick="handleProviderClick('facebook')"
+              >
+                <span class="icon">f</span>
+                <span>Continue with Facebook (mock)</span>
+              </button>
+
+              <button
+                class="provider-btn microsoft"
+                type="button"
+                onclick="handleProviderClick('microsoft')"
+              >
+                <span class="icon"></span>
+                <span>Continue with Microsoft (mock)</span>
+              </button>
+            </section>
+
+            <section class="status">
+              <span class="status-strong">Status:</span>
+              <span id="status">Initializing PoC…</span>
+            </section>
+
+            <p class="footer-note">
+              This screen is for <strong>technical demonstration only</strong>.
+              Google uses a real token; other providers are mocked and just
+              simulate a successful login event to the app, including the
+              selected mode (login/sign-up).
             </p>
-          </section>
-
-          <div class="divider">
-            <div class="divider-line"></div>
-            <span class="divider-text">Or continue with</span>
-            <div class="divider-line"></div>
           </div>
-
-          <section class="providers-row">
-            <button
-              class="provider-btn apple"
-              type="button"
-              onclick="handleProviderClick('apple')"
-            >
-              <span class="icon"></span>
-              <span>Continue with Apple (mock)</span>
-            </button>
-
-            <button
-              class="provider-btn facebook"
-              type="button"
-              onclick="handleProviderClick('facebook')"
-            >
-              <span class="icon">f</span>
-              <span>Continue with Facebook (mock)</span>
-            </button>
-
-            <button
-              class="provider-btn microsoft"
-              type="button"
-              onclick="handleProviderClick('microsoft')"
-            >
-              <span class="icon"></span>
-              <span>Continue with Microsoft (mock)</span>
-            </button>
-          </section>
-
-          <section class="status">
-            <span class="status-strong">Status:</span>
-            <span id="status">Initializing PoC…</span>
-          </section>
-
-          <p class="footer-note">
-            This screen is for <strong>technical demonstration only</strong>.
-            Google uses a real token; other providers are mocked and just
-            simulate a successful login event to the app.
-          </p>
         </section>
       </main>
     </div>
