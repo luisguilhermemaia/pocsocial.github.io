@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>Social Login PoC</title>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width,initial-scale=1,maximum-scale=1"
+    />
+    <script
+      src="https://accounts.google.com/gsi/client"
+      async
+      defer
+    ></script>
+    <script>
+      function handleCredentialResponse(response) {
+        try {
+          const payload = {
+            type: "LOGIN_SUCCESS",
+            provider: "google",
+            token: response.credential,
+          };
+
+          if (window.ReactNativeWebView) {
+            window.ReactNativeWebView.postMessage(JSON.stringify(payload));
+          } else {
+            console.log("Not running inside WebView. Payload:", payload);
+          }
+        } catch (error) {
+          console.error("Error handling credential response:", error);
+        }
+      }
+
+      window.onload = function () {
+        if (!window.google || !google.accounts || !google.accounts.id) {
+          console.warn("Google Identity API not loaded yet");
+          return;
+        }
+
+        google.accounts.id.initialize({
+          client_id: "YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com",
+          callback: handleCredentialResponse,
+        });
+
+        google.accounts.id.renderButton(
+          document.getElementById("buttonDiv"),
+          {
+            theme: "outline",
+            size: "large",
+            type: "standard",
+            shape: "rectangular",
+            text: "continue_with",
+          }
+        );
+      };
+    </script>
+  </head>
+  <body>
+    <h1>Luxair Social Login PoC</h1>
+    <div id="buttonDiv"></div>
+  </body>
+</html>
