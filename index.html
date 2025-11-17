@@ -1,17 +1,20 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <title>Social Login PoC</title>
+    <title>Luxair Social Login PoC</title>
     <meta charset="UTF-8" />
     <meta
       name="viewport"
       content="width=device-width,initial-scale=1,maximum-scale=1"
     />
+
+    <!-- Google Identity Services -->
     <script
       src="https://accounts.google.com/gsi/client"
       async
       defer
     ></script>
+
     <script>
       function handleCredentialResponse(response) {
         try {
@@ -21,10 +24,17 @@
             token: response.credential,
           };
 
+          // Communication with React Native WebView
           if (window.ReactNativeWebView) {
             window.ReactNativeWebView.postMessage(JSON.stringify(payload));
           } else {
-            console.log("Not running inside WebView. Payload:", payload);
+            // Fallback for browser testing
+            console.log("LOGIN_SUCCESS payload:", payload);
+            const el = document.getElementById("status");
+            if (el) {
+              el.textContent =
+                "Login successful (check browser console for payload).";
+            }
           }
         } catch (error) {
           console.error("Error handling credential response:", error);
@@ -38,7 +48,8 @@
         }
 
         google.accounts.id.initialize({
-          client_id: "45303054578-5v4ar40o31vfne9rafja4vc0988ja60c.apps.googleusercontent.com", 
+          client_id:
+            "45303054578-5v4ar40o31vfne9rafja4vc0988ja60c.apps.googleusercontent.com",
           callback: handleCredentialResponse,
         });
 
@@ -52,11 +63,54 @@
             text: "continue_with",
           }
         );
+
+        // Optional: one-tap is disabled for this PoC
+        // google.accounts.id.prompt();
       };
     </script>
+
+    <style>
+      body {
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+          sans-serif;
+        margin: 0;
+        padding: 16px;
+      }
+
+      .container {
+        max-width: 480px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 20px;
+        margin-bottom: 8px;
+      }
+
+      p {
+        font-size: 14px;
+        color: #444;
+      }
+
+      #status {
+        margin-top: 16px;
+        font-size: 13px;
+        color: #666;
+      }
+    </style>
   </head>
+
   <body>
-    <h1>Luxair Social Login PoC</h1>
-    <div id="buttonDiv"></div>
+    <div class="container">
+      <h1>Luxair Social Login PoC</h1>
+      <p>
+        This page is used only as a Proof of Concept to test Google social
+        login inside the Luxair mobile app WebView.
+      </p>
+
+      <div id="buttonDiv"></div>
+
+      <div id="status"></div>
+    </div>
   </body>
 </html>
