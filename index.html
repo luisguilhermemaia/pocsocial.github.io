@@ -522,11 +522,17 @@
         try {
           const params = new URLSearchParams(window.location.search);
           const logoutDone = params.get("logout_done");
+          const action = params.get("action");
 
           if (logoutDone) {
             const provider = params.get("provider") || "google";
             updateStatus(`Logout completed for ${provider}. Redirecting back to the app…`);
             redirectBackWithLogout(provider);
+            return true;
+          }
+
+          if (action === "logout") {
+            triggerGoogleLogout();
             return true;
           }
         } catch (error) {
