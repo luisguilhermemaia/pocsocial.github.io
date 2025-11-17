@@ -57,7 +57,6 @@
         background: #ffffff;
       }
 
-      /* MAIN / HERO */
       .lx-main {
         flex: 1;
         background: var(--lx-hero-bg);
@@ -87,8 +86,6 @@
         color: var(--lx-primary-dark);
       }
 
-      /* MyLuxair toggle bar */
-
       .lx-auth-toggle {
         display: inline-grid;
         grid-template-columns: 1fr 1fr;
@@ -117,8 +114,6 @@
         background: #005c7a;
         color: #ffffff;
       }
-
-      /* AUTH PANEL */
 
       .lx-auth-panel {
         position: relative;
@@ -324,6 +319,12 @@
       let currentMode = "login";
       let currentGoogleUser = null;
 
+      // If the app opens this page as:
+      // https://.../pocsocial.github.io/?redirect_uri=luxair://social-login-poc
+      const redirectUriParam = new URLSearchParams(window.location.search).get(
+        "redirect_uri"
+      );
+
       function postToReactNative(payload) {
         if (window.ReactNativeWebView) {
           window.ReactNativeWebView.postMessage(JSON.stringify(payload));
@@ -352,6 +353,22 @@
         const label = user.name || user.email || "Google user";
         infoEl.style.display = "block";
         infoEl.innerHTML = `Signed in as <strong>${label}</strong>`;
+      }
+
+      function buildRedirectUrl(params) {
+        try {
+          // redirectUriParam might already have query params; use URL to merge safely
+          const url = new URL(redirectUriParam);
+          Object.entries(params).forEach(([key, value]) => {
+            if (value != null) {
+              url.searchParams.set(key, String(value));
+            }
+          });
+          return url.toString();
+        } catch (error) {
+          console.warn("[PoC] Failed to build redirect URL:", error);
+          return null;
+        }
       }
 
       // Basic JWT decode for ID token (front-end only, for display)
@@ -385,7 +402,7 @@
               }
             : null;
 
-          const payload = {
+          const basePayload = {
             type: "LOGIN_SUCCESS",
             provider: "google",
             token: response.credential,
@@ -394,17 +411,33 @@
             profile: currentGoogleUser,
           };
 
-          postToReactNative(payload);
+          // If we were opened with a redirect_uri, go back to the app via deep link
+          if (redirectUriParam) {
+            const redirectUrl = buildRedirectUrl({
+              status: "success",
+              provider: "google",
+              mode: currentMode,
+              mock: false,
+              id_token: response.credential,
+            });
+
+            console.log("[PoC] Redirecting back to app:", redirectUrl);
+            if (redirectUrl) {
+              window.location.href = redirectUrl;
+              return;
+            }
+          }
+
+          // Fallback: in-browser / WebView postMessage mode
+          postToReactNative(basePayload);
           updateStatus(
             `Google ${currentMode} successful. Token sent to the app.`
           );
           updateSignedInInfo(currentGoogleUser);
 
           console.log("[PoC] Google login success:", {
-            provider: payload.provider,
-            mode: payload.mode,
-            profile: payload.profile,
-            tokenPreview: payload.token?.slice(0, 16) + "...",
+            ...basePayload,
+            tokenPreview: basePayload.token?.slice(0, 16) + "...",
           });
         } catch (error) {
           console.error("[PoC] Error handling Google credential:", error);
@@ -423,6 +456,25 @@
             mock: true,
           };
 
+          if (redirectUriParam) {
+            const redirectUrl = buildRedirectUrl({
+              status: "success",
+              provider,
+              mode: currentMode,
+              mock: true,
+            });
+
+            console.log(
+              "[PoC] Redirecting back to app (mock provider):",
+              redirectUrl
+            );
+            if (redirectUrl) {
+              window.location.href = redirectUrl;
+              return;
+            }
+          }
+
+          // Fallback: postMessage mode
           postToReactNative(payload);
           updateStatus(
             `${capitalize(provider)} (mock, ${currentMode}) login triggered and sent to the app.`
@@ -465,7 +517,11 @@
           }
         );
 
-        updateStatus("Ready. Choose a provider to start the PoC.");
+        updateStatus(
+          redirectUriParam
+            ? "Ready. After login you will be sent back to the app."
+            : "Ready. Choose a provider to start the PoC."
+        );
       }
 
       function setupToggle() {
@@ -493,7 +549,11 @@
       }
 
       window.addEventListener("load", function () {
-        updateStatus("Loading Google Identity Services…");
+        updateStatus(
+          redirectUriParam
+            ? "Opened from the app. After Google login you will be redirected back."
+            : "Loading Google Identity Services…"
+        );
         setupToggle();
 
         if (window.google && google.accounts && google.accounts.id) {
@@ -598,9 +658,9 @@
 
             <p class="footer-note">
               This screen is for <strong>technical demonstration only</strong>.
-              Google uses a real token; other providers are mocked and just
-              simulate a successful login event to the app, including the
-              selected mode (login/sign-up).
+              Google uses a real token; other providers are mocked. When
+              launched from the app, the page redirects back via the
+              <code>luxair://social-login-poc</code> deep link.
             </p>
           </div>
         </section>
