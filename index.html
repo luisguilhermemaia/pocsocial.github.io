@@ -325,6 +325,15 @@
       let currentGoogleUser = null;
       const defaultRedirect = "luxair://social-login-poc";
 
+      function getSearchParams() {
+        try {
+          return new URLSearchParams(window.location.search);
+        } catch (error) {
+          console.error("[PoC] Failed to parse search params", error);
+          return new URLSearchParams();
+        }
+      }
+
       function getRedirectUri() {
         try {
           const url = new URL(window.location.href);
@@ -355,6 +364,37 @@
           console.error("[PoC] Failed to build redirect URL, using fallback.", error);
           return redirectUri;
         }
+      }
+
+      function redirectBackWithLogout(provider) {
+        const baseRedirect = getRedirectUri();
+        try {
+          const redirect = new URL(baseRedirect);
+          redirect.searchParams.set("status", "logout");
+          if (provider) redirect.searchParams.set("provider", provider);
+
+          window.location.href = redirect.toString();
+        } catch (error) {
+          console.error("[PoC] Failed to build logout redirect", error);
+          window.location.href = baseRedirect;
+        }
+      }
+
+      function triggerGoogleLogout() {
+        const redirectUri = getRedirectUri();
+        const provider = "google";
+
+        // After Google logout, come back to this page and immediately deep link back to the app.
+        const returnTo = `${window.location.origin}${window.location.pathname}?logout_done=1&redirect_uri=${encodeURIComponent(
+          redirectUri
+        )}&provider=${encodeURIComponent(provider)}`;
+
+        const googleLogoutUrl = `https://accounts.google.com/Logout?continue=${encodeURIComponent(
+          returnTo
+        )}`;
+
+        updateStatus("Signing out from Google…");
+        window.location.href = googleLogoutUrl;
       }
 
       function postToReactNative(payload) {
@@ -473,6 +513,29 @@
         }
       }
 
+      function handleMockLogout() {
+        // Removed mock logout; Google logout is the only path we expose now.
+        updateStatus("Mock logout is disabled. Use Google logout instead.");
+      }
+
+      function handlePageArrival() {
+        try {
+          const params = new URLSearchParams(window.location.search);
+          const logoutDone = params.get("logout_done");
+
+          if (logoutDone) {
+            const provider = params.get("provider") || "google";
+            updateStatus(`Logout completed for ${provider}. Redirecting back to the app…`);
+            redirectBackWithLogout(provider);
+            return true;
+          }
+        } catch (error) {
+          console.error("[PoC] Failed to handle arrival params", error);
+        }
+
+        return false;
+      }
+
       function capitalize(str) {
         return str.charAt(0).toUpperCase() + str.slice(1);
       }
@@ -531,6 +594,8 @@
       }
 
       window.addEventListener("load", function () {
+        if (handlePageArrival()) return;
+
         updateStatus("Loading Google Identity Services…");
         setupToggle();
 
@@ -626,6 +691,13 @@
               >
                 <span class="icon"></span>
                 <span>Continue with Microsoft (mock)</span>
+              </button>
+            </section>
+
+            <section class="providers-row">
+              <button class="provider-btn" type="button" onclick="triggerGoogleLogout()">
+                <span class="icon">G</span>
+                <span>Logout Google</span>
               </button>
             </section>
 
