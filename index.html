@@ -527,12 +527,14 @@
 
           if (logoutDone) {
             const provider = params.get("provider") || "google";
+            history.replaceState(null, "", window.location.pathname);
             updateStatus(`Logout completed for ${provider}. Redirecting back to the app…`);
             redirectBackWithLogout(provider);
             return true;
           }
 
           if (action === "logout") {
+            history.replaceState(null, "", window.location.pathname);
             triggerGoogleLogout();
             return true;
           }
