@@ -366,6 +366,40 @@
         }
       }
 
+      function isAndroidDevice() {
+        try {
+          return /Android/i.test(window.navigator.userAgent || "");
+        } catch {
+          return false;
+        }
+      }
+
+      function buildAndroidIntentUrl(target) {
+        try {
+          const parsed = new URL(target);
+          const scheme = parsed.protocol.replace(":", "");
+          const path = parsed.pathname || "";
+          const query = parsed.search || "";
+          const host = parsed.host || "";
+          return `intent://${host}${path}${query}#Intent;scheme=${scheme};end`;
+        } catch (error) {
+          console.error("[PoC] Failed to build Android intent URL", error);
+          return null;
+        }
+      }
+
+      function redirectToApp(target) {
+        if (isAndroidDevice() && !window.ReactNativeWebView) {
+          const intentUri = buildAndroidIntentUrl(target);
+          if (intentUri) {
+            window.location.href = intentUri;
+            return;
+          }
+        }
+
+        window.location.href = target;
+      }
+
       function redirectBackWithLogout(provider) {
         const baseRedirect = getRedirectUri();
         try {
@@ -373,10 +407,10 @@
           redirect.searchParams.set("status", "logout");
           if (provider) redirect.searchParams.set("provider", provider);
 
-          window.location.href = redirect.toString();
+          redirectToApp(redirect.toString());
         } catch (error) {
           console.error("[PoC] Failed to build logout redirect", error);
-          window.location.href = baseRedirect;
+          redirectToApp(baseRedirect);
         }
       }
 
@@ -384,14 +418,9 @@
         const redirectUri = getRedirectUri();
         const provider = "google";
 
-        // After Google logout, come back to this page and immediately deep link back to the app.
-        const returnTo = `${window.location.origin}${window.location.pathname}?logout_done=1&redirect_uri=${encodeURIComponent(
-          redirectUri
-        )}&provider=${encodeURIComponent(provider)}`;
-
-        // Google is picky about the continue target; use the double-continue pattern via appengine logout.
+        // Send user straight back to the app after logout to reduce warning interstitials.
         const googleLogoutUrl = `https://accounts.google.com/Logout?continue=${encodeURIComponent(
-          `https://appengine.google.com/_ah/logout?continue=${encodeURIComponent(returnTo)}`
+          `https://appengine.google.com/_ah/logout?continue=${encodeURIComponent(redirectUri)}`
         )}`;
 
         updateStatus("Signing out from Google…");
@@ -408,7 +437,7 @@
           console.log("[PoC] Web payload (no RN bridge):", stringified);
         }
 
-        window.location.href = target;
+        redirectToApp(target);
       }
 
       function updateStatus(message) {
