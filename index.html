@@ -324,6 +324,7 @@
       let currentMode = "login";
       let currentGoogleUser = null;
       const defaultRedirect = "luxair://social-login-poc";
+      const androidAppPackage = "com.luxair.androidapp";
 
       function getSearchParams() {
         try {
@@ -374,14 +375,27 @@
         }
       }
 
+      function getAndroidFallbackUrl() {
+        try {
+          return window.location.origin + window.location.pathname;
+        } catch {
+          return "https://luisguilhermemaia.github.io/pocsocial.github.io/";
+        }
+      }
+
       function buildAndroidIntentUrl(target) {
         try {
           const parsed = new URL(target);
           const scheme = parsed.protocol.replace(":", "");
-          const path = parsed.pathname || "";
+          const path = parsed.pathname?.startsWith("/")
+            ? parsed.pathname
+            : parsed.pathname
+            ? `/${parsed.pathname}`
+            : "";
           const query = parsed.search || "";
           const host = parsed.host || "";
-          return `intent://${host}${path}${query}#Intent;scheme=${scheme};end`;
+          const fallback = encodeURIComponent(getAndroidFallbackUrl());
+          return `intent://${host}${path}${query}#Intent;scheme=${scheme};package=${androidAppPackage};S.browser_fallback_url=${fallback};end`;
         } catch (error) {
           console.error("[PoC] Failed to build Android intent URL", error);
           return null;
@@ -392,12 +406,12 @@
         if (isAndroidDevice() && !window.ReactNativeWebView) {
           const intentUri = buildAndroidIntentUrl(target);
           if (intentUri) {
-            window.location.href = intentUri;
+            window.location.replace(intentUri);
             return;
           }
         }
 
-        window.location.href = target;
+        window.location.replace(target);
       }
 
       function redirectBackWithLogout(provider) {
@@ -424,7 +438,7 @@
         )}`;
 
         updateStatus("Signing out from Google…");
-        window.location.href = googleLogoutUrl;
+        window.location.replace(googleLogoutUrl);
       }
 
       function postToReactNative(payload) {
